@@ -1,0 +1,5 @@
+west build -p auto -b nrf52840dongle_nrf52840
+
+rm basestation_dongle.zip
+nrfutil pkg generate --hw-version 52 --sd-req=0x00 --application build/zephyr/zephyr.hex --application-version 1 basestation_dongle.zip
+nrfutil dfu usb-serial -pkg basestation_dongle.zip -p /dev/ttyACM1
