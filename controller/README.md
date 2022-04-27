@@ -6,6 +6,12 @@ Controller will automatically connect to basestation and send the ambient light 
 ### Zephyr repository
 This code depends on VEML7700 sensor driver that is not in the main Zephyr repository. You have to checkout into this pull request branch https://github.com/zephyrproject-rtos/zephyr/pull/44953 (made by Nikolaus) in your Zephyr repository.
 
+```
+git fetch origin pull/44952/head:veml7700
+git checkout veml77700
+```
+
+
 ### How to connect VEML7700 to DK board
 
 ```
