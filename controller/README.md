@@ -35,3 +35,8 @@ In case you want to flash nrf52840 dongle board for testing purposes, there is a
 sh scripts/flash_dongle.sh
 ```
 You might want to change the port in the script.
+
+## Reading output (VMs)
+```
+/opt/SEGGER/JLink/JLinkRTTLogger -Device NRF52840_XXAA -if SWD -Speed 4000 -RTTChannel 0 /dev/stdout
+```
