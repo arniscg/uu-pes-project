@@ -36,7 +36,15 @@ sh scripts/flash_dongle.sh
 ```
 You might want to change the port in the script.
 
-## Reading output (VMs)
+## Reading output through SEGGER RTT (VMs)
+Add thse lines to `prj.conf` file
+```
+CONFIG_USE_SEGGER_RTT=y
+CONFIG_RTT_CONSOLE=y
+CONFIG_UART_CONSOLE=n
+```
+
+Then run command
 ```
 /opt/SEGGER/JLink/JLinkRTTLogger -Device NRF52840_XXAA -if SWD -Speed 4000 -RTTChannel 0 /dev/stdout
 ```
