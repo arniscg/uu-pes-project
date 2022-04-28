@@ -5,12 +5,15 @@
 #include <bluetooth/gatt.h>
 #include <sys/byteorder.h>
 
+#define BT_CONTROLLER_SERVICE_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf1, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+#define BT_LIGHT_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf2, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+
 static void start_scan(void);
-static void handle_bt_message(uint8_t data);
+static void handle_bt_message(uint16_t data);
 
 static struct bt_conn *default_conn;
 
-static struct bt_uuid_16 uuid = BT_UUID_INIT_16(0);
+static struct bt_uuid_128 uuid = BT_UUID_INIT_128(0);
 static struct bt_gatt_discover_params discover_params;
 static struct bt_gatt_subscribe_params subscribe_params;
 
@@ -24,11 +27,11 @@ static uint8_t notify_func(struct bt_conn *conn,
 		return BT_GATT_ITER_STOP;
 	}
 
-	uint8_t lux = ((uint8_t *)data)[1];
+	uint16_t lux = ((uint16_t *)data)[0];
 
     handle_bt_message(lux);
 
-	// printk("[NOTIFICATION] ambient light: %dlux length\n", lux);
+	// printk("[NOTIFICATION] ambient light: %d lux, length: %d \n", lux, length);
 
 	return BT_GATT_ITER_CONTINUE;
 }
@@ -47,8 +50,8 @@ static uint8_t discover_func(struct bt_conn *conn,
 
 	printk("[ATTRIBUTE] handle %u\n", attr->handle);
 
-	if (!bt_uuid_cmp(discover_params.uuid, BT_UUID_HRS)) {
-		memcpy(&uuid, BT_UUID_HRS_MEASUREMENT, sizeof(uuid));
+	if (!bt_uuid_cmp(discover_params.uuid, BT_CONTROLLER_SERVICE_UUID)) {
+		memcpy(&uuid, BT_LIGHT_CHARACTERISTIC_UUID, sizeof(uuid));
 		discover_params.uuid = &uuid.uuid;
 		discover_params.start_handle = attr->handle + 1;
 		discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
@@ -57,8 +60,7 @@ static uint8_t discover_func(struct bt_conn *conn,
 		if (err) {
 			printk("Discover failed (err %d)\n", err);
 		}
-	} else if (!bt_uuid_cmp(discover_params.uuid,
-				BT_UUID_HRS_MEASUREMENT)) {
+	} else if (!bt_uuid_cmp(discover_params.uuid, BT_LIGHT_CHARACTERISTIC_UUID)) {
 		memcpy(&uuid, BT_UUID_GATT_CCC, sizeof(uuid));
 		discover_params.uuid = &uuid.uuid;
 		discover_params.start_handle = attr->handle + 2;
@@ -90,42 +92,58 @@ static uint8_t discover_func(struct bt_conn *conn,
 static bool eir_found(struct bt_data *data, void *user_data)
 {
 	bt_addr_le_t *addr = user_data;
-	int i;
+	int err;
+	struct bt_le_conn_param *param;
 
 	printk("[AD]: %u data_len %u\n", data->type, data->data_len);
 
 	switch (data->type) {
-	case BT_DATA_UUID16_SOME:
-	case BT_DATA_UUID16_ALL:
+	case BT_DATA_UUID128_SOME:
+	case BT_DATA_UUID128_ALL:
 		if (data->data_len % sizeof(uint16_t) != 0U) {
 			printk("AD malformed\n");
 			return true;
 		}
 
-		for (i = 0; i < data->data_len; i += sizeof(uint16_t)) {
-			struct bt_le_conn_param *param;
-			struct bt_uuid *uuid;
-			uint16_t u16;
-			int err;
+		if (data->data_len == BT_UUID_SIZE_128) {
+			for (int i = 0; i < 16; i++) {
+				printk("%d\n", data->data[i]);
+			} 
+			if (bt_uuid_cmp(BT_UUID_DECLARE_128( // This is ugly
+					data->data[0],
+					data->data[1],
+					data->data[2],
+					data->data[3],
+					data->data[4],
+					data->data[5],
+					data->data[6],
+					data->data[7],
+					data->data[8],
+					data->data[9],
+					data->data[10],
+					data->data[11],
+					data->data[12],
+					data->data[13],
+					data->data[14],
+					data->data[15]
+			), BT_CONTROLLER_SERVICE_UUID) == 0) {
+				printk("YES!\n");
+				err = bt_le_scan_stop();
+				if (err) {
+					printk("Stop LE scan failed (err %d)\n", err);
+					return true;
+				}
 
-			memcpy(&u16, &data->data[i], sizeof(u16));
-			uuid = BT_UUID_DECLARE_16(sys_le16_to_cpu(u16));
-			if (bt_uuid_cmp(uuid, BT_UUID_HRS)) {
-				continue;
-			}
-
-			err = bt_le_scan_stop();
-			if (err) {
-				printk("Stop LE scan failed (err %d)\n", err);
-				continue;
-			}
-
-			param = BT_LE_CONN_PARAM_DEFAULT;
-			err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN,
-						param, &default_conn);
-			if (err) {
-				printk("Create conn failed (err %d)\n", err);
-				start_scan();
+				param = BT_LE_CONN_PARAM_DEFAULT;
+				err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN,
+							param, &default_conn);
+				if (err) {
+					printk("Create conn failed (err %d)\n", err);
+					start_scan();
+				}
+			} else {
+				printk("No match\n");
+				return true;
 			}
 
 			return false;
@@ -193,7 +211,8 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 	printk("Connected: %s\n", addr);
 
 	if (conn == default_conn) {
-		memcpy(&uuid, BT_UUID_HRS, sizeof(uuid));
+		// memcpy(&uuid, BT_UUID_HRS, sizeof(uuid));
+		memcpy(&uuid, BT_CONTROLLER_SERVICE_UUID, sizeof(uuid));
 		discover_params.uuid = &uuid.uuid;
 		discover_params.func = discover_func;
 		discover_params.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;

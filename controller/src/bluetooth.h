@@ -3,13 +3,14 @@
 #include <bluetooth/conn.h>
 #include <bluetooth/uuid.h>
 #include <bluetooth/gatt.h>
-#include <bluetooth/services/hrs.h>
+
+#include "bluetooth_service.h"
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL,
-		      BT_UUID_16_ENCODE(BT_UUID_HRS_VAL),
-		      BT_UUID_16_ENCODE(BT_UUID_DIS_VAL))
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL,
+		BT_CONTROLLER_SERVICE_UUID_BYTES
+	)
 };
 
 static void connected(struct bt_conn *conn, uint8_t err)
@@ -84,5 +85,7 @@ static void send_light_sensor_value(uint16_t value) {
 	// Using predefined heartrate sensor bluetooth service
 	// We will have to create our own service in the future
 	// This only sends 8bit data but we will need at least 16bit to support values above 255
-	bt_hrs_notify(value);
+	// bt_hrs_notify(value);
+
+	bt_gatt_notify(NULL, &controller_service.attrs[1], &value, sizeof(value));
 }

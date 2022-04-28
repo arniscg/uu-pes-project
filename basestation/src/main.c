@@ -6,7 +6,7 @@
 
 #include "bluetooth.h"
 
-static void handle_bt_message(uint8_t data) {
+static void handle_bt_message(uint16_t data) {
 	printk("Received ambient light value %d lux\n", data);
 }
 
