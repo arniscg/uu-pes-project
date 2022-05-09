@@ -8,8 +8,11 @@
 #include <device.h>
 #include <drivers/sensor.h>
 #include <stdio.h>
-
 #include "bluetooth.h"
+
+static void handle_adjustment_request(uint8_t data) {
+	printk("Received adjustment request with data %d\n", data);
+}
 
 void main(void)
 {

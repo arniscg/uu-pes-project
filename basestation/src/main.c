@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <zephyr.h>
 #include <sys/printk.h>
-
 #include "bluetooth.h"
 
 static void handle_bt_sensor_value(uint16_t data) {
@@ -19,5 +18,13 @@ void main(void) {
 	if (!bt_okay) {
 		printk("Failed to connect to bluetooth");
 		return;
+	}
+
+	// Send adjustment request every 5s
+	while(true) {
+		k_msleep(5000);
+		request_adjustment(1);
+		k_msleep(5000);
+		request_adjustment(0);
 	}
 }

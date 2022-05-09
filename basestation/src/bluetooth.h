@@ -5,9 +5,10 @@
 #include <bluetooth/gatt.h>
 #include <sys/byteorder.h>
 
-#define BT_CONTROLLER_SERVICE_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf1, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
-#define BT_LIGHT_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf2, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
-#define BT_BUTTON_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf3, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+#define BT_CONTROLLER_SERVICE_UUID        BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf1, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+#define BT_LIGHT_CHARACTERISTIC_UUID      BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf2, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+#define BT_BUTTON_CHARACTERISTIC_UUID     BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf3, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+#define BT_ADJUSTMENT_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf4, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
 
 static void start_scan(void);
 static void handle_bt_sensor_value(uint16_t data);
@@ -19,6 +20,7 @@ static struct bt_uuid_128 uuid = BT_UUID_INIT_128(0);
 static struct bt_gatt_discover_params discover_params;
 static struct bt_gatt_subscribe_params subscribe_params_light;
 static struct bt_gatt_subscribe_params subscribe_params_buttons;
+static struct bt_gatt_write_params write_params_adjustment;
 
 static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params *params, const void *data, uint16_t length) {
 	if (!data) {
@@ -71,12 +73,24 @@ static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *at
 			printk("Discover failed (err %d)\n", err);
 		}
 	} else if (bt_uuid_cmp(discover_params.uuid, BT_BUTTON_CHARACTERISTIC_UUID) == 0) {
+		printk("Discovering adjustment characteristic\n");
+		memcpy(&uuid, BT_ADJUSTMENT_CHARACTERISTIC_UUID, sizeof(uuid));
+		discover_params.uuid = &uuid.uuid;
+		discover_params.start_handle = attr->handle + 2;
+		discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
+		subscribe_params_buttons.value_handle = bt_gatt_attr_value_handle(attr);
+
+		err = bt_gatt_discover(conn, &discover_params);
+		if (err) {
+			printk("Discover failed (err %d)\n", err);
+		}
+	} else if (bt_uuid_cmp(discover_params.uuid, BT_ADJUSTMENT_CHARACTERISTIC_UUID) == 0) {
 		printk("Discovering CCC descriptor\n");
 	 	memcpy(&uuid, BT_UUID_GATT_CCC, sizeof(uuid));
 		discover_params.uuid = &uuid.uuid;
 		discover_params.start_handle = attr->handle + 2;
 		discover_params.type = BT_GATT_DISCOVER_DESCRIPTOR;
-		subscribe_params_buttons.value_handle = bt_gatt_attr_value_handle(attr);
+		write_params_adjustment.handle = bt_gatt_attr_value_handle(attr);
 
 		err = bt_gatt_discover(conn, &discover_params);
 		if (err) {
@@ -273,4 +287,21 @@ static int connect_bluetooth() {
 	start_scan();
 
     return 1;
+}
+
+static void bt_gatt_write_func(struct bt_conn *conn, uint8_t err, struct bt_gatt_write_params *params) {
+	// This might not be needed...
+}
+
+static void request_adjustment(uint8_t data) {
+	printk("Requesting adjustment!\n");
+	write_params_adjustment.data = &data;
+	write_params_adjustment.length = sizeof(data);
+	write_params_adjustment.func = bt_gatt_write_func;
+	write_params_adjustment.offset = 0;
+
+	int ret = bt_gatt_write(default_conn, &write_params_adjustment);
+	if (ret != 0) {
+		printk("Failed to send adjustment request");
+	}
 }
