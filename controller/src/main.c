@@ -8,8 +8,11 @@
 #include <device.h>
 #include <drivers/sensor.h>
 #include <stdio.h>
-
 #include "bluetooth.h"
+
+static void handle_adjustment_request(uint8_t data) {
+	printk("Received adjustment request with data %d\n", data);
+}
 
 void main(void)
 {
@@ -31,7 +34,7 @@ void main(void)
 
 	// Main loop
 	while (1) {
-		k_sleep(K_SECONDS(1));
+		k_sleep(K_SECONDS(2));
 
 		// Get sensor reading
 		sensor_sample_fetch(veml7700);
@@ -39,5 +42,6 @@ void main(void)
 
 		// Send to basestation
 		send_light_sensor_value(lux.val1);
+		send_button_value(3);
 	}
 }
