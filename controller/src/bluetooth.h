@@ -82,10 +82,13 @@ static int connect_bluetooth() {
  */
 static void send_light_sensor_value(uint16_t value) {
 	printk("Sending ambient light value %d lux to basestation\n", value);
-	// Using predefined heartrate sensor bluetooth service
-	// We will have to create our own service in the future
-	// This only sends 8bit data but we will need at least 16bit to support values above 255
-	// bt_hrs_notify(value);
-
 	bt_gatt_notify(NULL, &controller_service.attrs[1], &value, sizeof(value));
+}
+
+/**
+ * Function that sends button value to basestation
+ */
+static void send_button_value(uint16_t value) {
+	printk("Sending button value %d to basestation\n", value);
+	bt_gatt_notify(NULL, &controller_service.attrs[3], &value, sizeof(value));
 }

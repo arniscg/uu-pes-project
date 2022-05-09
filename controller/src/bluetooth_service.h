@@ -2,7 +2,7 @@
 
 static void ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
-	printk("Not sure what to do here\n");
+	printk("Value: %d. Not sure what to do here\n", value);
 }
 
 // https://www.guidgenerator.com/
@@ -18,5 +18,6 @@ static void ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 BT_GATT_SERVICE_DEFINE(controller_service,
     BT_GATT_PRIMARY_SERVICE(BT_CONTROLLER_SERVICE_UUID),
     BT_GATT_CHARACTERISTIC(BT_LIGHT_CHARACTERISTIC_UUID, BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_NONE, NULL, NULL, NULL),
+    BT_GATT_CHARACTERISTIC(BT_BUTTON_CHARACTERISTIC_UUID, BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_NONE, NULL, NULL, NULL),
     BT_GATT_CCC(ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 );

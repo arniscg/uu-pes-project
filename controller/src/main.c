@@ -31,7 +31,7 @@ void main(void)
 
 	// Main loop
 	while (1) {
-		k_sleep(K_SECONDS(1));
+		k_sleep(K_SECONDS(2));
 
 		// Get sensor reading
 		sensor_sample_fetch(veml7700);
@@ -39,5 +39,6 @@ void main(void)
 
 		// Send to basestation
 		send_light_sensor_value(lux.val1);
+		send_button_value(3);
 	}
 }

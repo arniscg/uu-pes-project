@@ -7,39 +7,37 @@
 
 #define BT_CONTROLLER_SERVICE_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf1, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
 #define BT_LIGHT_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf2, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
+#define BT_BUTTON_CHARACTERISTIC_UUID BT_UUID_DECLARE_128(0xa3, 0x45, 0x36, 0xf3, 0xcc, 0x82, 0x4c, 0x80, 0xa4, 0x94, 0xd0, 0xc5, 0x1b, 0x5f, 0xb1, 0x1c)
 
 static void start_scan(void);
-static void handle_bt_message(uint16_t data);
+static void handle_bt_sensor_value(uint16_t data);
+static void handle_bt_button(uint16_t data);
 
 static struct bt_conn *default_conn;
 
 static struct bt_uuid_128 uuid = BT_UUID_INIT_128(0);
 static struct bt_gatt_discover_params discover_params;
-static struct bt_gatt_subscribe_params subscribe_params;
+static struct bt_gatt_subscribe_params subscribe_params_light;
+static struct bt_gatt_subscribe_params subscribe_params_buttons;
 
-static uint8_t notify_func(struct bt_conn *conn,
-			   struct bt_gatt_subscribe_params *params,
-			   const void *data, uint16_t length)
-{
+static uint8_t notify_func(struct bt_conn *conn, struct bt_gatt_subscribe_params *params, const void *data, uint16_t length) {
 	if (!data) {
 		printk("[UNSUBSCRIBED]\n");
 		params->value_handle = 0U;
 		return BT_GATT_ITER_STOP;
 	}
 
-	uint16_t lux = ((uint16_t *)data)[0];
-
-    handle_bt_message(lux);
-
-	// printk("[NOTIFICATION] ambient light: %d lux, length: %d \n", lux, length);
+	uint16_t value = ((uint16_t *)data)[0];
+	if (params->value_handle == subscribe_params_light.value_handle) {
+		handle_bt_sensor_value(value);
+	} else if (params->value_handle == subscribe_params_buttons.value_handle) {
+		handle_bt_button(value);
+	}
 
 	return BT_GATT_ITER_CONTINUE;
 }
 
-static uint8_t discover_func(struct bt_conn *conn,
-			     const struct bt_gatt_attr *attr,
-			     struct bt_gatt_discover_params *params)
-{
+static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *attr, struct bt_gatt_discover_params *params) {
 	int err;
 
 	if (!attr) {
@@ -48,9 +46,9 @@ static uint8_t discover_func(struct bt_conn *conn,
 		return BT_GATT_ITER_STOP;
 	}
 
-	printk("[ATTRIBUTE] handle %u\n", attr->handle);
-
-	if (!bt_uuid_cmp(discover_params.uuid, BT_CONTROLLER_SERVICE_UUID)) {
+	printk("Discovered attribute: %d (perm: %d)\n", bt_gatt_attr_value_handle(attr), attr->perm);
+	if (bt_uuid_cmp(discover_params.uuid, BT_CONTROLLER_SERVICE_UUID) == 0) {
+		printk("Discovering light value characteristic\n");
 		memcpy(&uuid, BT_LIGHT_CHARACTERISTIC_UUID, sizeof(uuid));
 		discover_params.uuid = &uuid.uuid;
 		discover_params.start_handle = attr->handle + 1;
@@ -60,30 +58,53 @@ static uint8_t discover_func(struct bt_conn *conn,
 		if (err) {
 			printk("Discover failed (err %d)\n", err);
 		}
-	} else if (!bt_uuid_cmp(discover_params.uuid, BT_LIGHT_CHARACTERISTIC_UUID)) {
-		memcpy(&uuid, BT_UUID_GATT_CCC, sizeof(uuid));
+	} else if (bt_uuid_cmp(discover_params.uuid, BT_LIGHT_CHARACTERISTIC_UUID) == 0) {
+		printk("Discovering button characteristic\n");
+		memcpy(&uuid, BT_BUTTON_CHARACTERISTIC_UUID, sizeof(uuid));
+		discover_params.uuid = &uuid.uuid;
+		discover_params.start_handle = attr->handle + 2;
+		discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
+		subscribe_params_light.value_handle = bt_gatt_attr_value_handle(attr);
+
+		err = bt_gatt_discover(conn, &discover_params);
+		if (err) {
+			printk("Discover failed (err %d)\n", err);
+		}
+	} else if (bt_uuid_cmp(discover_params.uuid, BT_BUTTON_CHARACTERISTIC_UUID) == 0) {
+		printk("Discovering CCC descriptor\n");
+	 	memcpy(&uuid, BT_UUID_GATT_CCC, sizeof(uuid));
 		discover_params.uuid = &uuid.uuid;
 		discover_params.start_handle = attr->handle + 2;
 		discover_params.type = BT_GATT_DISCOVER_DESCRIPTOR;
-		subscribe_params.value_handle = bt_gatt_attr_value_handle(attr);
+		subscribe_params_buttons.value_handle = bt_gatt_attr_value_handle(attr);
 
 		err = bt_gatt_discover(conn, &discover_params);
 		if (err) {
 			printk("Discover failed (err %d)\n", err);
 		}
 	} else {
-		subscribe_params.notify = notify_func;
-		subscribe_params.value = BT_GATT_CCC_NOTIFY;
-		subscribe_params.ccc_handle = attr->handle;
+		subscribe_params_light.notify = notify_func;
+		subscribe_params_light.value = BT_GATT_CCC_NOTIFY;
+		subscribe_params_light.ccc_handle = attr->handle;
+		subscribe_params_buttons.notify = notify_func;
+		subscribe_params_buttons.value = BT_GATT_CCC_NOTIFY;
+		subscribe_params_buttons.ccc_handle = attr->handle;
 
-		err = bt_gatt_subscribe(conn, &subscribe_params);
+		printk("Subscribing to light...\n");
+		err = bt_gatt_subscribe(conn, &subscribe_params_light);
 		if (err && err != -EALREADY) {
 			printk("Subscribe failed (err %d)\n", err);
 		} else {
 			printk("[SUBSCRIBED]\n");
 		}
 
-		return BT_GATT_ITER_STOP;
+		printk("Subscribing to desired light...\n");
+		err = bt_gatt_subscribe(conn, &subscribe_params_buttons);
+		if (err && err != -EALREADY) {
+			printk("Subscribe failed (err %d)\n", err);
+		} else {
+			printk("[SUBSCRIBED]\n");
+		}
 	}
 
 	return BT_GATT_ITER_STOP;
@@ -106,28 +127,13 @@ static bool eir_found(struct bt_data *data, void *user_data)
 		}
 
 		if (data->data_len == BT_UUID_SIZE_128) {
-			for (int i = 0; i < 16; i++) {
-				printk("%d\n", data->data[i]);
-			} 
 			if (bt_uuid_cmp(BT_UUID_DECLARE_128( // This is ugly
-					data->data[0],
-					data->data[1],
-					data->data[2],
-					data->data[3],
-					data->data[4],
-					data->data[5],
-					data->data[6],
-					data->data[7],
-					data->data[8],
-					data->data[9],
-					data->data[10],
-					data->data[11],
-					data->data[12],
-					data->data[13],
-					data->data[14],
-					data->data[15]
+				data->data[0], data->data[1], data->data[2], data->data[3],
+				data->data[4], data->data[5], data->data[6], data->data[7],
+				data->data[8], data->data[9], data->data[10], data->data[11],
+				data->data[12], data->data[13], data->data[14], data->data[15]
 			), BT_CONTROLLER_SERVICE_UUID) == 0) {
-				printk("YES!\n");
+				printk("Found controller service!\n");
 				err = bt_le_scan_stop();
 				if (err) {
 					printk("Stop LE scan failed (err %d)\n", err);
@@ -219,6 +225,7 @@ static void connected(struct bt_conn *conn, uint8_t conn_err)
 		discover_params.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
 		discover_params.type = BT_GATT_DISCOVER_PRIMARY;
 
+		printk("Discovering primary service\n");
 		err = bt_gatt_discover(default_conn, &discover_params);
 		if (err) {
 			printk("Discover failed(err %d)\n", err);
