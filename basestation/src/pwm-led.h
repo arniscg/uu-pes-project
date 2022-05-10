@@ -58,25 +58,21 @@ static void pwm_led_init()
 	       max_period, MIN_PERIOD_USEC);
 
 	period = MIN_PERIOD_USEC;
+
+	duty_cycle = 50;
 	
-	int ret = pwm_pin_set_usec(pwm, PWM_CHANNEL,
-				       period, (uint32_t ) period/2, PWM_FLAGS);
-		if (ret) 
-        {
-			printk("Error %d: failed to set pulse width\n", ret);
-			return;
-		}
+	set_brightness(duty_cycle);
 }
 
 static void increase_brightness_by(uint8_t duty)
 {
     
-    if(duty <= duty_cycle)
+    if(duty < duty_cycle)
     {
         duty_cycle -= duty;
     } else
     {
-        duty_cycle = 0;
+        duty_cycle = 1;
     }
 
     int ret = pwm_pin_set_usec(pwm, PWM_CHANNEL,
@@ -91,12 +87,12 @@ static void increase_brightness_by(uint8_t duty)
 static void decrease_brightness_by(uint8_t duty)
 {
     
-    if(duty_cycle + duty <= 100)
+    if(duty_cycle + duty < 100)
     {
         duty_cycle += duty;
     } else
     {
-        duty_cycle = 100;
+        duty_cycle = 99;
     }
 
     int ret = pwm_pin_set_usec(pwm, PWM_CHANNEL,

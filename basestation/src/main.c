@@ -52,7 +52,7 @@ void compare_to_reference(uint16_t measured_val)
 	{
 		request_adjustment(1);
 		decrease_brightness_by(5);
-	} if (measured_val < reference_val - 50)
+	} else if (measured_val < reference_val - 50)
 	{
 		request_adjustment(1);
 		increase_brightness_by(5);
@@ -110,14 +110,6 @@ void basestation_task(void)
 	//TODO: disconnect communication if basestation_state == basestation_off
 	//reconnect if basestation_state == basestation_on
 
-	// Send adjustment request every 5s
-	while(true) 
-	{
-		k_msleep(5000);
-		request_adjustment(1);
-		k_msleep(5000);
-		request_adjustment(0);
-	}
 }
 
 #if 0
