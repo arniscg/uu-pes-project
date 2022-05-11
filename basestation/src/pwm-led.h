@@ -3,7 +3,7 @@
 #include <device.h>
 #include <drivers/pwm.h>
 
-#define PWM_LED0_NODE	DT_ALIAS(pwm_led0)
+#define PWM_LED0_NODE	DT_ALIAS(pwmled)
 
 #if DT_NODE_HAS_STATUS(PWM_LED0_NODE, okay)
 #define PWM_CTLR	DT_PWMS_CTLR(PWM_LED0_NODE)
@@ -64,7 +64,7 @@ static void pwm_led_init()
 	set_brightness(duty_cycle);
 }
 
-static void increase_brightness_by(uint8_t duty)
+static void decrease_brightness_by(uint8_t duty)
 {
     
     if(duty < duty_cycle)
@@ -84,7 +84,7 @@ static void increase_brightness_by(uint8_t duty)
 		}
 }
 
-static void decrease_brightness_by(uint8_t duty)
+static void increase_brightness_by(uint8_t duty)
 {
     
     if(duty_cycle + duty < 100)

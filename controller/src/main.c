@@ -10,8 +10,18 @@
 #include <stdio.h>
 #include "bluetooth.h"
 
+static volatile uint8_t adjustment_mode = 0;
+
 static void handle_adjustment_request(uint8_t data) {
-	printk("Received adjustment request with data %d\n", data);
+	if (data == 0) {
+		printk("Exiting adjustment mode\n");
+		adjustment_mode = 0;
+	} else if (data == 1) {
+		printk("Entering adjustment mode\n");
+		adjustment_mode = 1;
+	} else {
+		printk("Warning: Got unexpected adjutment request valule '%d'\n", data);
+	}
 }
 
 void main(void)
@@ -19,14 +29,14 @@ void main(void)
 	// Initialize bluetooth connection
 	int bt_okay = connect_bluetooth();
 	if (!bt_okay) {
-		printf("Failed to connect to bluetooth");
+		printk("Failed to connect to bluetooth");
 		return;
 	}
 
 	// Initialize the light sensor
 	const struct device *veml7700 = device_get_binding("VEML7700");
 	if (veml7700 == NULL) {
-		printf("No device \"%s\" found; did initialization fail?\n", "VEML7700");
+		printk("No device \"%s\" found; did initialization fail?\n", "VEML7700");
 		return;
 	}
 
@@ -34,7 +44,10 @@ void main(void)
 
 	// Main loop
 	while (1) {
-		k_sleep(K_SECONDS(2));
+		if (adjustment_mode)
+			k_msleep(200);
+		else
+			k_msleep(2000);
 
 		// Get sensor reading
 		sensor_sample_fetch(veml7700);
@@ -42,6 +55,6 @@ void main(void)
 
 		// Send to basestation
 		send_light_sensor_value(lux.val1);
-		send_button_value(3);
+		// send_button_value(3);
 	}
 }

@@ -8,6 +8,7 @@
 
 #define MY_STACK_SIZE 				1000
 #define BUTTON_DEBOUNCE_DELAY_MS 	100
+#define THRESHOLD					10 // Right now it's very low because of low ligt LED
 
 #if 0
 /* Semaphore used to signal from button ISR to task */
@@ -43,22 +44,35 @@ typedef enum
 } brightness;
 
 static volatile uint16_t reference_val = normal;
+static volatile uint8_t adjustment_mode = 0;
 K_MUTEX_DEFINE(mode_mutex);
 
 /* Compare measured value to reference value and increase/decrease brightness*/
 void compare_to_reference(uint16_t measured_val)
 {
-	if(measured_val > reference_val + 50)
+	uint8_t new_adjustment_mode;
+
+	printk("Reference: %d, measured: %d\n", reference_val, measured_val);
+	if(measured_val > reference_val + THRESHOLD)
 	{
-		request_adjustment(1);
+		new_adjustment_mode = 1;
 		decrease_brightness_by(5);
-	} else if (measured_val < reference_val - 50)
+	} else if (measured_val < reference_val - THRESHOLD)
 	{
-		request_adjustment(1);
+		new_adjustment_mode = 1;
 		increase_brightness_by(5);
 	} else
 	{
-		request_adjustment(0);
+		new_adjustment_mode = 0;
+	}
+
+	// Send adjustment request only when it changes
+	if (new_adjustment_mode != adjustment_mode) {
+		adjustment_mode = new_adjustment_mode;
+		if (adjustment_mode)
+			request_adjustment(1);
+		else
+			request_adjustment(0);
 	}
 }
 
@@ -86,7 +100,7 @@ void change_mode(uint16_t data)
 
 static void handle_bt_sensor_value(uint16_t data) 
 {
-	printk("Received ambient light value %d lux\n", data);
+	// printk("Received ambient light value %d lux\n", data);
 	compare_to_reference(data);
 }
 
@@ -98,14 +112,14 @@ static void handle_bt_button(uint16_t data)
 
 void basestation_task(void) 
 {
+	pwm_led_init();
+
 	int bt_okay = connect_bluetooth();
 	if (!bt_okay) 
 	{
 		printk("Failed to connect to bluetooth");
 		return;
 	}
-
-	pwm_led_init();
 
 	//TODO: disconnect communication if basestation_state == basestation_off
 	//reconnect if basestation_state == basestation_on
