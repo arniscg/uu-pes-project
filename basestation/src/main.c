@@ -56,11 +56,11 @@ void compare_to_reference(uint16_t measured_val)
 	if(measured_val > reference_val + THRESHOLD)
 	{
 		new_adjustment_mode = 1;
-		increase_brightness_by(5);
+		decrease_brightness_by(5);
 	} else if (measured_val < reference_val - THRESHOLD)
 	{
 		new_adjustment_mode = 1;
-		decrease_brightness_by(5);
+		increase_brightness_by(5);
 	} else
 	{
 		new_adjustment_mode = 0;

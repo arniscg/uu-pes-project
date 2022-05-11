@@ -64,7 +64,7 @@ static void pwm_led_init()
 	set_brightness(duty_cycle);
 }
 
-static void increase_brightness_by(uint8_t duty)
+static void decrease_brightness_by(uint8_t duty)
 {
     
     if(duty < duty_cycle)
@@ -84,7 +84,7 @@ static void increase_brightness_by(uint8_t duty)
 		}
 }
 
-static void decrease_brightness_by(uint8_t duty)
+static void increase_brightness_by(uint8_t duty)
 {
     
     if(duty_cycle + duty < 100)
