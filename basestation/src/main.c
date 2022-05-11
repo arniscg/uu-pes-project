@@ -38,7 +38,7 @@ static volatile state_t basestation_state = basestation_on;
 typedef enum
 {
 	off				= 0,
-	normal			= 60,
+	normal			= 150,
 	simple_study 	= 250,
 	intensive_study = 500
 } brightness;
