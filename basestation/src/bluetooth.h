@@ -294,6 +294,7 @@ static void bt_gatt_write_func(struct bt_conn *conn, uint8_t err, struct bt_gatt
 }
 
 static void request_adjustment(uint8_t data) {
+	printk("Requesting adjustment!\n");
 	write_params_adjustment.data = &data;
 	write_params_adjustment.length = sizeof(data);
 	write_params_adjustment.func = bt_gatt_write_func;

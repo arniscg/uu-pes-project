@@ -6,12 +6,6 @@ Controller will automatically connect to basestation and send the ambient light 
 ### Zephyr repository
 This code depends on VEML7700 sensor driver that is not in the main Zephyr repository. You have to checkout into this pull request branch https://github.com/zephyrproject-rtos/zephyr/pull/44953 (made by Nikolaus) in your Zephyr repository.
 
-```
-git fetch origin pull/44953/head:veml7700
-git checkout veml7700
-```
-
-
 ### How to connect VEML7700 to DK board
 
 ```
@@ -35,16 +29,3 @@ In case you want to flash nrf52840 dongle board for testing purposes, there is a
 sh scripts/flash_dongle.sh
 ```
 You might want to change the port in the script.
-
-## Reading output through SEGGER RTT (VMs)
-Add thse lines to `prj.conf` file
-```
-CONFIG_USE_SEGGER_RTT=y
-CONFIG_RTT_CONSOLE=y
-CONFIG_UART_CONSOLE=n
-```
-
-Then run command
-```
-/opt/SEGGER/JLink/JLinkRTTLogger -Device NRF52840_XXAA -if SWD -Speed 4000 -RTTChannel 0 /dev/stdout
-```
