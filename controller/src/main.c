@@ -12,10 +12,6 @@
 #include <devicetree.h>
 #include <drivers/gpio.h>
 
-static void handle_adjustment_request(uint8_t data) {
-	printk("Received adjustment request with data %d\n", data);
-}
-
 #define BUTTON_DEBOUNCE_DELAY_MS 	100
 #define MY_STACK_SIZE 	1000
 
@@ -44,7 +40,20 @@ static struct gpio_callback button_cb_data;
 static struct gpio_callback button_cb_data1;
 static struct gpio_callback button_cb_data2;
 static struct gpio_callback button_cb_data3;
-//K_SEM_DEFINE(button_sem, 0, 1);
+
+static volatile uint8_t adjustment_mode = 0;
+
+static void handle_adjustment_request(uint8_t data) {
+	if (data == 0) {
+		printk("Exiting adjustment mode\n");
+		adjustment_mode = 0;
+	} else if (data == 1) {
+		printk("Entering adjustment mode\n");
+		adjustment_mode = 1;
+	} else {
+		printk("Warning: Got unexpected adjutment request valule '%d'\n", data);
+	}
+}
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
@@ -58,60 +67,32 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 
 	time = last_time;
 
-    send_button_value(0);
+	if(pins == BIT(SW0_PIN))
+	{
+
+        send_button_value(0);       
+
+	}
+	else if(pins == BIT(SW1_PIN))
+	{
+		send_button_value(1);  
+	
+	}
+	else if(pins == BIT(SW2_PIN))
+	{
+ 
+       send_button_value(2); 
+	}
+	else if(pins == BIT(SW3_PIN))
+	{
+		send_button_value(3); 
+	}
+	else
+	{
+		printf("not valid button pressed");
+	}
 	
 }
-
-
-void button_pressed1(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-    time = k_uptime_get_32();
-	 //printf("Button pressed\n");
-	if (time < last_time + BUTTON_DEBOUNCE_DELAY_MS) 
-	{
-		last_time = time;
-		return;
-	}
-
-	time = last_time;
-
-     send_button_value(1);
-
-}
-
-void button_pressed2(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-    time = k_uptime_get_32();
-	 //printf("Button pressed\n");
-	if (time < last_time + BUTTON_DEBOUNCE_DELAY_MS) 
-	{
-		last_time = time;
-		return;
-	}
-
-	time = last_time;
-
-     send_button_value(2);
-
-}
-
-void button_pressed3(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-    time = k_uptime_get_32();
-	 //printf("Button pressed\n");
-	if (time < last_time + BUTTON_DEBOUNCE_DELAY_MS) 
-	{
-		last_time = time;
-		return;
-	}
-
-	time = last_time;
-
-     send_button_value(3);
-
-}
-
-
 
 void button_task()
 {
@@ -128,27 +109,26 @@ void button_task()
 	sw1 = device_get_binding(SW1);
 	gpio_pin_configure(sw1, SW1_PIN, GPIO_INPUT | SW1_FLAGS);
 	gpio_pin_interrupt_configure(sw1, SW1_PIN, GPIO_INT_EDGE_TO_ACTIVE);
-	gpio_init_callback(&button_cb_data1, button_pressed1, BIT(SW1_PIN));
+	gpio_init_callback(&button_cb_data1, button_pressed, BIT(SW1_PIN));
 	gpio_add_callback(sw1, &button_cb_data1);
 
 	const struct device *sw2;
 	sw2 = device_get_binding(SW2);
 	gpio_pin_configure(sw2, SW2_PIN, GPIO_INPUT | SW2_FLAGS);
 	gpio_pin_interrupt_configure(sw2, SW2_PIN, GPIO_INT_EDGE_TO_ACTIVE);
-	gpio_init_callback(&button_cb_data2, button_pressed2, BIT(SW2_PIN));
+	gpio_init_callback(&button_cb_data2, button_pressed, BIT(SW2_PIN));
 	gpio_add_callback(sw2, &button_cb_data2);
 
 	const struct device *sw3;
 	sw3 = device_get_binding(SW3);
 	gpio_pin_configure(sw3, SW3_PIN, GPIO_INPUT | SW3_FLAGS);
 	gpio_pin_interrupt_configure(sw3, SW3_PIN, GPIO_INT_EDGE_TO_ACTIVE);
-	gpio_init_callback(&button_cb_data3, button_pressed3, BIT(SW3_PIN));
+	gpio_init_callback(&button_cb_data3, button_pressed, BIT(SW3_PIN));
 	gpio_add_callback(sw3, &button_cb_data3);
 
 	while(1)
 	{
-	 	 
-			
+	 	 		
 			k_sleep(K_SECONDS(3));
 			
 	}  
@@ -158,7 +138,6 @@ void button_task()
 void main()
 {
     
-
     int bt_okay = connect_bluetooth();
 	if (!bt_okay) {
 		printf("Failed to connect to bluetooth");
@@ -171,52 +150,27 @@ void main()
 		return;
 	}
 
+    struct sensor_value lux;
+
 	while(1)
 	{
-	 	  
-			
-			k_sleep(K_SECONDS(3));
 
+        if (adjustment_mode)
+			k_msleep(200);
+		else
+			k_msleep(2000);
+
+		// Get sensor reading
+		sensor_sample_fetch(veml7700);
+		sensor_channel_get(veml7700, SENSOR_CHAN_LIGHT, &lux);
+
+		// Send to basestation
+		send_light_sensor_value(lux.val1);
+		// send_button_value(3);
+	 	  			
+			k_sleep(K_SECONDS(3));
 			
 	}      
 
 }
-
-
 K_THREAD_DEFINE(button, MY_STACK_SIZE, button_task, NULL, NULL, NULL, 0, 0, 0);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
