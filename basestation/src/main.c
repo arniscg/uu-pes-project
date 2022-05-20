@@ -85,14 +85,19 @@ void change_mode(uint16_t data)
 
 		case 0: 
 			reference_val = off;
+			break;
 		case 1:
 			reference_val = normal;
+			break;
 		case 2:
 			reference_val = simple_study;
-		case 4:
+			break;
+		case 3:
 			reference_val = intensive_study;
+			break;
 		default:
 			reference_val = reference_val;
+			break;
 
 		k_mutex_unlock(&mode_mutex);
 	}
