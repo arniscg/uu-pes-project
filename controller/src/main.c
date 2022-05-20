@@ -43,14 +43,18 @@ static struct gpio_callback button_cb_data3;
 
 static volatile uint8_t adjustment_mode = 0;
 
-static void handle_adjustment_request(uint8_t data) {
-	if (data == 0) {
+static void handle_adjustment_request(uint8_t data)
+{
+	if (data == 0)
+	{
 		printk("Exiting adjustment mode\n");
 		adjustment_mode = 0;
-	} else if (data == 1) {
+	} else if (data == 1)
+	{
 		printk("Entering adjustment mode\n");
 		adjustment_mode = 1;
-	} else {
+	} else
+	{
 		printk("Warning: Got unexpected adjutment request valule '%d'\n", data);
 	}
 }
@@ -69,18 +73,14 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 
 	if(pins == BIT(SW0_PIN))
 	{
-
         send_button_value(0);       
-
 	}
 	else if(pins == BIT(SW1_PIN))
 	{
 		send_button_value(1);  
-	
 	}
 	else if(pins == BIT(SW2_PIN))
 	{
- 
        send_button_value(2); 
 	}
 	else if(pins == BIT(SW3_PIN))
@@ -91,12 +91,10 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
 	{
 		printf("not valid button pressed");
 	}
-	
 }
 
 void button_task()
 {
-
      /* Set up button interrupt */
 	const struct device *sw0;
 	sw0 = device_get_binding(SW0);
@@ -128,16 +126,12 @@ void button_task()
 
 	while(1)
 	{
-	 	 		
-			k_sleep(K_SECONDS(3));
-			
+		k_sleep(K_SECONDS(3));
 	}  
-
 }
 
 void main()
 {
-    
     int bt_okay = connect_bluetooth();
 	if (!bt_okay) {
 		printf("Failed to connect to bluetooth");
@@ -154,7 +148,6 @@ void main()
 
 	while(1)
 	{
-
         if (adjustment_mode)
 			k_msleep(200);
 		else
@@ -166,11 +159,7 @@ void main()
 
 		// Send to basestation
 		send_light_sensor_value(lux.val1);
-		// send_button_value(3);
-	 	  			
-			k_sleep(K_SECONDS(3));
-			
 	}      
-
 }
+
 K_THREAD_DEFINE(button, MY_STACK_SIZE, button_task, NULL, NULL, NULL, 0, 0, 0);
