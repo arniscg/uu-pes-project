@@ -6,6 +6,8 @@
 
 #include "bluetooth_service.h"
 
+static uint8_t connected_to_basestation = 0;
+
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL,
@@ -20,11 +22,15 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	} else {
 		printk("Connected\n");
 	}
+
+	connected_to_basestation = 1;
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	printk("Disconnected (reason 0x%02x)\n", reason);
+
+	connected_to_basestation = 0;
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
