@@ -263,7 +263,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	bt_conn_unref(default_conn);
 	default_conn = NULL;
 
-	start_scan();
+	// start_scan();
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
@@ -277,7 +277,7 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 static int connect_bluetooth() {
 	int err = bt_enable(NULL);
 
-	if (err) {
+	if (err && err != -EALREADY) {
 		printk("Bluetooth init failed (err %d)\n", err);
         return 0;
 	}

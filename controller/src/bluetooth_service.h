@@ -2,7 +2,7 @@
 
 static void ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
 {
-	printk("Value: %d. Not sure what to do here\n", value);
+	// printk("Value: %d. Not sure what to do here\n", value);
 }
 
 // https://www.guidgenerator.com/

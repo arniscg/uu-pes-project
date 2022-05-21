@@ -13,7 +13,9 @@
 #include <drivers/gpio.h>
 
 #define BUTTON_DEBOUNCE_DELAY_MS 	100
-#define MY_STACK_SIZE 	1000
+#define MY_STACK_SIZE 				1000
+#define WAIT_LONG 					2000
+#define WAIT_SHORT					200
 
 #define SW0_NODE	DT_ALIAS(sw0)
 #define SW0			DT_GPIO_LABEL(SW0_NODE, gpios)
@@ -148,17 +150,23 @@ void main()
 
 	while(1)
 	{
-        if (adjustment_mode)
-			k_msleep(200);
-		else
-			k_msleep(2000);
+		if (connected_to_basestation)
+		{
+			if (adjustment_mode)
+				k_msleep(WAIT_SHORT);
+			else
+				k_msleep(WAIT_LONG);
 
-		// Get sensor reading
-		sensor_sample_fetch(veml7700);
-		sensor_channel_get(veml7700, SENSOR_CHAN_LIGHT, &lux);
+			// Get sensor reading
+			sensor_sample_fetch(veml7700);
+			sensor_channel_get(veml7700, SENSOR_CHAN_LIGHT, &lux);
 
-		// Send to basestation
-		send_light_sensor_value(lux.val1);
+			// Send to basestation
+			send_light_sensor_value(lux.val1);
+		} else 
+		{
+			k_msleep(WAIT_LONG);
+		}
 	}      
 }
 

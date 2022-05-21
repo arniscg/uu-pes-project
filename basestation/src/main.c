@@ -5,16 +5,19 @@
 #include <sys/printk.h>
 #include "bluetooth.h"
 #include "pwm-led.h"
+#include <drivers/gpio.h>
 
 #define MY_STACK_SIZE 				1000
 #define BUTTON_DEBOUNCE_DELAY_MS 	100
-#define THRESHOLD					10 // Right now it's very low because of low ligt LED
+#define THRESHOLD					20
+#define ADJUSTMENT_STEP				2
 
-#if 0
 /* Semaphore used to signal from button ISR to task */
 K_SEM_DEFINE(button_sem, 0, 1);
 
 //struct k_mutex state_mutex;
+// Not sure we need a lock when there is only one writer and one reader
+// It's only used by writer, so it doesn't really lock anyone out. So currently it does nothing.
 K_MUTEX_DEFINE(state_mutex);
 
 #define SW0_NODE	DT_ALIAS(sw0)
@@ -27,25 +30,31 @@ static volatile uint32_t time, last_time;
 
 typedef enum _state
 {
-	basestation_off,
-	basestation_on
+	auto_adjust_off,
+	auto_adjust_on
 } state_t;
 
-static volatile state_t basestation_state = basestation_on;
-
-#endif
+static volatile state_t basestation_state = auto_adjust_on;
 
 typedef enum
 {
 	off				= 0,
 	normal			= 150,
 	simple_study 	= 250,
-	intensive_study = 500
+	intensive_study = 400
 } brightness;
 
 static volatile uint16_t reference_val = normal;
 static volatile uint8_t adjustment_mode = 0;
 K_MUTEX_DEFINE(mode_mutex);
+
+uint16_t abs(uint16_t val) {
+	if (val < 0) {
+		return val * -1;
+	}
+
+	return val;
+}
 
 /* Compare measured value to reference value and increase/decrease brightness*/
 void compare_to_reference(uint16_t measured_val)
@@ -53,14 +62,13 @@ void compare_to_reference(uint16_t measured_val)
 	uint8_t new_adjustment_mode;
 
 	printk("Reference: %d, measured: %d\n", reference_val, measured_val);
-	if(measured_val > reference_val + THRESHOLD)
+	if (abs(measured_val - reference_val) > THRESHOLD)
 	{
 		new_adjustment_mode = 1;
-		decrease_brightness_by(5);
-	} else if (measured_val < reference_val - THRESHOLD)
-	{
-		new_adjustment_mode = 1;
-		increase_brightness_by(5);
+		if (measured_val > reference_val)
+			decrease_brightness_by(ADJUSTMENT_STEP);
+		else 
+			increase_brightness_by(ADJUSTMENT_STEP);
 	} else
 	{
 		new_adjustment_mode = 0;
@@ -125,13 +133,7 @@ void basestation_task(void)
 		printk("Failed to connect to bluetooth");
 		return;
 	}
-
-	//TODO: disconnect communication if basestation_state == basestation_off
-	//reconnect if basestation_state == basestation_on
-
 }
-
-#if 0
 
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
@@ -166,14 +168,16 @@ void button_task()
 		k_sem_take(&button_sem, K_FOREVER);
 
 		k_mutex_lock(&state_mutex, K_FOREVER);
-		if(basestation_state == basestation_off)
+		if(basestation_state == auto_adjust_off)
 		{
-			basestation_state == basestation_on;
-			printk("The basestation has been turned on\n");
+			basestation_state = auto_adjust_on;
+			printk("The auto adjustment has been turned on\n");
+			connect_bluetooth();
 		} else
 		{
-			basestation_state == basestation_off;
-			printk("The basestation has been turned off\n");
+			basestation_state = auto_adjust_off;
+			printk("The auto adjustment has been turned off\n");
+			bt_conn_disconnect(default_conn, BT_HCI_ERR_REMOTE_POWER_OFF);
 		}
 		k_mutex_unlock(&state_mutex);
 	}
@@ -181,8 +185,6 @@ void button_task()
 
 K_THREAD_DEFINE(button_id, MY_STACK_SIZE, button_task, 
 				NULL, NULL, NULL, 5, 0, 0);
-
-#endif
 
 K_THREAD_DEFINE(work_id, MY_STACK_SIZE, basestation_task,
 				NULL, NULL, NULL, 5, 0, 0);
